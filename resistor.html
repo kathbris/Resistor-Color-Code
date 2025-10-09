@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Resistor Color Code Trainer</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h2 { color: #333; }
+    .section { margin-bottom: 30px; }
+    .hidden { display: none; }
+    .feedback { font-weight: bold; margin-top: 10px; }
+    .correct { color: green; }
+    .incorrect { color: red; }
+    table { border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    .color-box {
+      display: inline-block;
+      padding: 4px 8px;
+      margin: 2px;
+      border-radius: 4px;
+      color: white;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Resistor Color Code Trainer</h2>
+  <button onclick="generateNewQuestion()">New Question</button>
+
+  <div id="colorToValue" class="section hidden">
+    <h3>Color Bands → Resistance Value</h3>
+    <div>
+      <label>Band 1: <span id="ctvBand1"></span></label>
+      <label>Band 2: <span id="ctvBand2"></span></label>
+      <label>Multiplier: <span id="ctvMultiplier"></span></label>
+      <label>Tolerance: <span id="ctvTolerance"></span></label>
+    </div>
+    <div>
+      <label>Enter Resistance: 
+        <input type="number" id="resistanceInput">
+        <select id="resistanceUnit">
+          <option value="1">Ω</option>
+          <option value="1000">kΩ</option>
+          <option value="1000000">MΩ</option>
+        </select>
+      </label>
+      <label>Enter Tolerance (%): <input type="number" id="toleranceInput"></label>
+      <button onclick="checkColorToValue()">Check</button>
+    </div>
+    <div id="feedback1" class="feedback"></div>
+  </div>
+
+  <div id="valueToColor" class="section hidden">
+    <h3>Resistance Value → Color Bands</h3>
+    <div>
+      <label>Resistance: <span id="vtcResistance"></span></label>
+      <label>Tolerance (%): <span id="vtcTolerance"></span></label>
+    </div>
+    <div>
+      <label>Band 1: <select id="band1Guess"></select></label>
+      <label>Band 2: <select id="band2Guess"></select></label>
+      <label>Multiplier: <select id="multiplierGuess"></select></label>
+      <label>Tolerance: <select id="toleranceGuess"></select></label>
+      <button onclick="checkValueToColor()">Check</button>
+    </div>
+    <div id="feedback2" class="feedback"></div>
+  </div>
+
+  <div class="section">
+    <h3>Resistor Color Code Chart</h3>
+    <table>
+      <tr><th>Color</th><th>Digit</th><th>Multiplier</th><th>Tolerance</th></tr>
+      <tr><td><span class="color-box" style="background:black">Black</span></td><td>0</td><td>×1</td><td></td></tr>
+      <tr><td><span class="color-box" style="background:brown">Brown</span></td><td>1</td><td>×10</td><td>±1%</td></tr>
+      <tr><td><span class="color-box" style="background:red">Red</span></td><td>2</td><td>×100</td><td>±2%</td></tr>
+      <tr><td><span class="color-box" style="background:orange">Orange</span></td><td>3</td><td>×1k</td><td></td></tr>
+      <tr><td><span class="color-box" style="background:yellow">Yellow</span></td><td>4</td><td>×10k</td><td></td></tr>
+      <tr><td><span class="color-box" style="background:green">Green</span></td><td>5</td><td>×100k</td><td>±0.5%</td></tr>
+      <tr><td><span class="color-box" style="background:blue">Blue</span></td><td>6</td><td>×1M</td><td>±0.25%</td></tr>
+      <tr><td><span class="color-box" style="background:violet">Violet</span></td><td>7</td><td>×10M</td><td>±0.1%</td></tr>
+      <tr><td><span class="color-box" style="background:gray">Gray</span></td><td>8</td><td>×100M</td><td>±0.05%</td></tr>
+      <tr><td><span class="color-box" style="background:white; color:black">White</span></td><td>9</td><td>×1G</td><td></td></tr>
+      <tr><td><span class="color-box" style="background:gold">Gold</span></td><td></td><td>×0.1</td><td>±5%</td></tr>
+      <tr><td><span class="color-box" style="background:silver; color:black">Silver</span></td><td></td><td>×0.01</td><td>±10%</td></tr>
+    </table>
+  </div>
+
+  <script>
+    const colors = [
+      { name: "Black", digit: 0, multiplier: 1, css: "black" },
+      { name: "Brown", digit: 1, multiplier: 10, tolerance: 1, css: "brown" },
+      { name: "Red", digit: 2, multiplier: 100, tolerance: 2, css: "red" },
+      { name: "Orange", digit: 3, multiplier: 1000, css: "orange" },
+      { name: "Yellow", digit: 4, multiplier: 10000, css: "yellow" },
+      { name: "Green", digit: 5, multiplier: 100000, tolerance: 0.5, css: "green" },
+      { name: "Blue", digit: 6, multiplier: 1000000, tolerance: 0.25, css: "blue" },
+      { name: "Violet", digit: 7, multiplier: 10000000, tolerance: 0.1, css: "violet" },
+      { name: "Gray", digit: 8, multiplier: 100000000, tolerance: 0.05, css: "gray" },
+      { name: "White", digit: 9, multiplier: 1000000000, css: "white" },
+      { name: "Gold", multiplier: 0.1, tolerance: 5, css: "gold" },
+      { name: "Silver", multiplier: 0.01, tolerance: 10, css: "silver" }
+    ];
+
+    function formatSI(value) {
+      if (value >= 1e6) return (value / 1e6).toFixed(2) + " MΩ";
+      if (value >= 1e3) return (value / 1e3).toFixed(2) + " kΩ";
+      return value + " Ω";
+    }
+
+    function createOption(color) {
+      return `<option value="${color.digit ?? color.multiplier ?? color.tolerance}" style="background:${color.css}; color:${color.css === 'white' || color.css === 'silver' ? 'black' : 'white'}">${color.name}</option>`;
+    }
+
+    function populateSelects() {
+      const band1 = document.getElementById("band1Guess");
+      const band2 = document.getElementById("band2Guess");
+      const multiplier = document.getElementById("multiplierGuess");
+      const tolerance = document.getElementById("toleranceGuess");
+
+      band1.innerHTML = colors.filter(c => c.digit !== undefined && c.digit !== 0).map(createOption).join("");
+      band2.innerHTML = colors.filter(c => c.digit !== undefined).map(createOption).join("");
+      multiplier.innerHTML = colors.filter(c => c.multiplier !== undefined).map(createOption).join("");
+      tolerance.innerHTML = colors.filter(c => c.tolerance !== undefined).map(createOption).join("");
+    }
+
+    function generateNewQuestion() {
+      document.getElementById("feedback1").innerHTML = "";
+      document.getElementById("feedback2").innerHTML = "";
+
+      const mode = Math.random() < 0.5 ? "colorToValue" : "valueToColor";
+      document.getElementById("colorToValue").classList.add("hidden");
+      document.getElementById("valueToColor").classList.add("hidden");
+
+      if (mode === "colorToValue") {
+        const d1 = colors.filter(c => c.digit !== undefined && c.digit !== 0)[Math.floor(Math.random() * 9)];
+        const d2 = colors.filter(c => c.digit !== undefined)[Math.floor(Math.random() * 10)];
+        const m = colors.filter(c => c.multiplier !== undefined)[Math.floor(Math.random() * 12)];
+        const t = colors.filter(c => c.tolerance !== undefined)[Math.floor(Math.random() * 7)];
+
+        document.getElementById("ctvBand1").innerHTML = `<span class="color-box" style="background:${d1.css}; color:${d1.css === 'white' || d1.css === 'silver' ? 'black' : 'white'}">${d1.name}</span>`;
+        document.getElementById("ctvBand2").innerHTML = `<span class="color-box" style="background:${d2.css}; color:${d2.css === 'white' || d2.css === 'silver' ? 'black' : 'white'}">${d2.name}</span>`;
+        document.getElementById("ctvMultiplier").innerHTML = `<span class="color-box" style="background:${m.css}; color:${m.css === 'white' || m.css === 'silver' ? 'black' : 'white'}">${m.name}</span>`;
+        document.getElementById("ctvTolerance").innerHTML = `<span class="color-box" style="background:${t.css}; color:${t.css === 'white' || t.css === 'silver' ? 'black' : 'white'}">${t.name}</span>`;
+
+        document.getElementById("colorToValue").classList.remove("hidden");
+
+        document.getElementById("colorToValue").dataset.expected = (d1.digit * 10 + d2.digit) * m.multiplier;
+        document.getElementById("colorToValue").dataset.tolerance = t.tolerance;
+      } else {
+        const d1 = colors.filter(c => c.digit !== undefined && c.digit !== 0)[Math.floor(Math.random() * 9)];
+        const d2 = colors.filter(c => c.digit !== undefined)[Math.floor(Math.random() * 10)];
+        const m = colors.filter(c => c.multiplier !== undefined)[Math.floor(Math.random() * 12)];
+        const t = colors.filter(c => c.tolerance !== undefined)[Math.floor(Math.random() * 7)];
+
+        const resistance = (d1.digit * 10 + d2.digit) * m.multiplier;
+
+        document.getElementById("vtcResistance").textContent = formatSI(resistance);
+        document.getElementById("vtcTolerance").textContent = t.tolerance;
+
+        document.getElementById("valueToColor").classList.remove("hidden");
+
+        document.getElementById("valueToColor").dataset.expected = resistance;
+        document.getElementById("valueToColor").dataset.tolerance = t.tolerance;
+      }
+    }
+
+    function checkColorToValue() {
+      const expected = parseFloat(document.getElementById("colorToValue").dataset.expected);
+      const tol = parseFloat(document.getElementById("colorToValue").dataset.tolerance);
+      const inputVal = parseFloat(document.getElementById("resistanceInput").value);
+      const unit = parseFloat(document.getElementById("resistanceUnit").value);
+      const inputTol = parseFloat(document.getElementById("toleranceInput").value);
+
+      const actual = inputVal * unit;
+      const feedback = document.getElementById("feedback1");
+
+      if (Math.abs(expected - actual) < 0.01 && tol === inputTol) {
+        feedback.innerHTML = `<span class="correct">Correct!</span>`;
+      } else {
+        feedback.innerHTML = `<span class="incorrect">Incorrect. Expected ${formatSI(expected)} ±${tol}%</span>`;
+      }
+    }
+
+    function checkValueToColor() {
+      const expected = parseFloat(document.getElementById("valueToColor").dataset.expected);
+      const tol = parseFloat(document.getElementById("valueToColor").dataset.tolerance);
+      const d1 = parseInt(document.getElementById("band1Guess").value);
+      const d2 = parseInt(document.getElementById("band2Guess").value);
+      const m = parseFloat(document.getElementById("multiplierGuess").value);
+      const t = parseFloat(document.getElementById("toleranceGuess").value);
+
+      const guessed = (d1 * 10 + d2) * m;
+      const feedback = document.getElementById("feedback2");
+
+      if (Math.abs(guessed - expected) < 0.01 && tol === t) {
+        feedback.innerHTML = `<span class="correct">Correct!</span>`;
+      } else {
+        feedback.innerHTML = `<span class="incorrect">Incorrect. Try again.</span>`;
+      }
+    }
+
+    populateSelects();
+    generateNewQuestion();
+  </script>
+</body>
+</html>

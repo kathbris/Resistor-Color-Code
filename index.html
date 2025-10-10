@@ -33,17 +33,21 @@
     <div>
       <label>Band 1: <span id="ctvBand1"></span></label>
       <label>Band 2: <span id="ctvBand2"></span></label>
-      <label>Multiplier: <span id="ctvMultiplier"></span></label>
-      <label>Tolerance: <span id="ctvTolerance"></span></label>
+      <label>Band 3: <span id="ctvMultiplier"></span></label>
+      <label>Band 4: <span id="ctvTolerance"></span></label>
     </div>
     <div>
       <label>Enter Resistance: 
         <input type="number" id="resistanceInput">
-        <select id="resistanceUnit">
-          <option value="1">Ω</option>
-          <option value="1000">kΩ</option>
-          <option value="1000000">MΩ</option>
-        </select>
+        
+<select id="resistanceUnit">
+  <option value="0.001">mΩ</option>
+  <option value="1">Ω</option>
+  <option value="1000">kΩ</option>
+  <option value="1000000">MΩ</option>
+  <option value="1000000000">GΩ</option>
+</select>
+
       </label>
       <label>Enter Tolerance (%): <input type="number" id="toleranceInput"></label>
       <button onclick="checkColorToValue()">Check</button>
@@ -78,7 +82,7 @@
       <tr><td><span class="color-box" style="background:yellow">Yellow</span></td><td>4</td><td>×10k</td><td></td></tr>
       <tr><td><span class="color-box" style="background:green">Green</span></td><td>5</td><td>×100k</td><td>±0.5%</td></tr>
       <tr><td><span class="color-box" style="background:blue">Blue</span></td><td>6</td><td>×1M</td><td>±0.25%</td></tr>
-      <tr><td><span class="color-box" style="background:violet">Violet</span></td><td>7</td><td>×10M</td><td>±0.1%</td></tr>
+      <tr><td><span class="color-box" style="background:rgb(122, 6, 122)">Violet</span></td><td>7</td><td>×10M</td><td>±0.1%</td></tr>
       <tr><td><span class="color-box" style="background:gray">Gray</span></td><td>8</td><td>×100M</td><td>±0.05%</td></tr>
       <tr><td><span class="color-box" style="background:white; color:black">White</span></td><td>9</td><td>×1G</td><td></td></tr>
       <tr><td><span class="color-box" style="background:gold">Gold</span></td><td></td><td>×0.1</td><td>±5%</td></tr>
@@ -95,33 +99,33 @@
       { name: "Yellow", digit: 4, multiplier: 10000, css: "yellow" },
       { name: "Green", digit: 5, multiplier: 100000, tolerance: 0.5, css: "green" },
       { name: "Blue", digit: 6, multiplier: 1000000, tolerance: 0.25, css: "blue" },
-      { name: "Violet", digit: 7, multiplier: 10000000, tolerance: 0.1, css: "violet" },
+      { name: "Violet", digit: 7, multiplier: 10000000, tolerance: 0.1, css: "rgb(122, 6, 122)" },
       { name: "Gray", digit: 8, multiplier: 100000000, tolerance: 0.05, css: "gray" },
       { name: "White", digit: 9, multiplier: 1000000000, css: "white" },
       { name: "Gold", multiplier: 0.1, tolerance: 5, css: "gold" },
       { name: "Silver", multiplier: 0.01, tolerance: 10, css: "silver" }
     ];
 
-    function formatSI(value) {
-      if (value >= 1e6) return (value / 1e6).toFixed(2) + " MΩ";
-      if (value >= 1e3) return (value / 1e3).toFixed(2) + " kΩ";
-      return value + " Ω";
+
+function formatSI(value) {
+  if (value >= 1e9) return (value / 1e9).toFixed(2) + " GΩ";
+  if (value >= 1e6) return (value / 1e6).toFixed(2) + " MΩ";
+  if (value >= 1e3) return (value / 1e3).toFixed(2) + " kΩ";
+  if (value >= 1) return value.toFixed(2) + " Ω";
+  return (value * 1000).toFixed(2) + " mΩ";
+
     }
 
-    function createOption(color) {
-      return `<option value="${color.digit ?? color.multiplier ?? color.tolerance}" style="background:${color.css}; color:${color.css === 'white' || color.css === 'silver' ? 'black' : 'white'}">${color.name}</option>`;
+    function createOption(color, valueKey) {
+      const value = color[valueKey];
+      return `<option value="${value}" style="background:${color.css}; color:${color.css === 'white' || color.css === 'silver' ? 'black' : 'white'}">${color.name}</option>`;
     }
 
     function populateSelects() {
-      const band1 = document.getElementById("band1Guess");
-      const band2 = document.getElementById("band2Guess");
-      const multiplier = document.getElementById("multiplierGuess");
-      const tolerance = document.getElementById("toleranceGuess");
-
-      band1.innerHTML = colors.filter(c => c.digit !== undefined && c.digit !== 0).map(createOption).join("");
-      band2.innerHTML = colors.filter(c => c.digit !== undefined).map(createOption).join("");
-      multiplier.innerHTML = colors.filter(c => c.multiplier !== undefined).map(createOption).join("");
-      tolerance.innerHTML = colors.filter(c => c.tolerance !== undefined).map(createOption).join("");
+      document.getElementById("band1Guess").innerHTML = colors.filter(c => c.digit !== undefined && c.digit !== 0).map(c => createOption(c, "digit")).join("");
+      document.getElementById("band2Guess").innerHTML = colors.filter(c => c.digit !== undefined).map(c => createOption(c, "digit")).join("");
+      document.getElementById("multiplierGuess").innerHTML = colors.filter(c => c.multiplier !== undefined).map(c => createOption(c, "multiplier")).join("");
+      document.getElementById("toleranceGuess").innerHTML = colors.filter(c => c.tolerance !== undefined).map(c => createOption(c, "tolerance")).join("");
     }
 
     function generateNewQuestion() {
@@ -160,8 +164,8 @@
 
         document.getElementById("valueToColor").classList.remove("hidden");
 
-        document.getElementById("valueToColor").dataset.expected = resistance;
-        document.getElementById("valueToColor").dataset.tolerance = t.tolerance;
+        document.getElementById("valueToColor").dataset.expected = resistance.toString();
+        document.getElementById("valueToColor").dataset.tolerance = t.tolerance.toString();
       }
     }
 
@@ -196,7 +200,7 @@
       if (Math.abs(guessed - expected) < 0.01 && tol === t) {
         feedback.innerHTML = `<span class="correct">Correct!</span>`;
       } else {
-        feedback.innerHTML = `<span class="incorrect">Incorrect. Try again.</span>`;
+        feedback.innerHTML = `<span class="incorrect">Incorrect. Expected ${formatSI(expected)} ±${tol}%</span>`;
       }
     }
 

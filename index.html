@@ -166,6 +166,17 @@ function formatSI(value) {
 
         document.getElementById("valueToColor").dataset.expected = resistance.toString();
         document.getElementById("valueToColor").dataset.tolerance = t.tolerance.toString();
+        // store the expected band names and numeric values so we can give helpful feedback later
+        document.getElementById("valueToColor").dataset.expectedBands = JSON.stringify({
+          band1Name: d1.name,
+          band2Name: d2.name,
+          multiplierName: m.name,
+          toleranceName: t.name,
+          band1Digit: d1.digit,
+          band2Digit: d2.digit,
+          multiplierValue: m.multiplier,
+          toleranceValue: t.tolerance
+        });
       }
     }
 
@@ -197,11 +208,58 @@ function formatSI(value) {
       const guessed = (d1 * 10 + d2) * m;
       const feedback = document.getElementById("feedback2");
 
+      // helper to render a color box from a color object (or a fallback label)
+      function colorBoxFor(colorObj) {
+        if (!colorObj) return `<span class="color-box" style="background:transparent; color:black">(none)</span>`;
+        const fg = colorObj.css === 'white' || colorObj.css === 'silver' ? 'black' : 'white';
+        return `<span class="color-box" style="background:${colorObj.css}; color:${fg}">${colorObj.name}</span>`;
+      }
+
       if (Math.abs(guessed - expected) < 0.01 && tol === t) {
         feedback.innerHTML = `<span class="correct">Correct!</span>`;
-      } else {
-        feedback.innerHTML = `<span class="incorrect">Incorrect. Expected ${formatSI(expected)} ±${tol}%</span>`;
+        return;
       }
+
+      // parse expected bands (stored as JSON when the question was created)
+      let expectedBands = { band1Name: '?', band2Name: '?', multiplierName: '?', toleranceName: '?' };
+      try {
+        expectedBands = JSON.parse(document.getElementById("valueToColor").dataset.expectedbands || document.getElementById("valueToColor").dataset.expectedBands);
+      } catch (e) { /* ignore parse errors */ }
+
+      // find color objects for expected and selected values
+      const expectedBand1 = colors.find(c => c.name === expectedBands.band1Name);
+      const expectedBand2 = colors.find(c => c.name === expectedBands.band2Name);
+      const expectedMultiplier = colors.find(c => c.name === expectedBands.multiplierName);
+      const expectedTolerance = colors.find(c => c.name === expectedBands.toleranceName);
+
+      const selectedBand1 = colors.find(c => c.digit !== undefined && c.digit === d1);
+      const selectedBand2 = colors.find(c => c.digit !== undefined && c.digit === d2);
+      const selectedMultiplier = colors.find(c => c.multiplier !== undefined && c.multiplier === m);
+      const selectedTolerance = colors.find(c => c.tolerance !== undefined && c.tolerance === t);
+
+      // build message explaining expected colours and which selections were wrong
+      let msg = `<div><span class="incorrect">Incorrect.</span> Expected ${formatSI(expected)} ±${tol}%.</div>`;
+      msg += `<div style="margin-top:8px"><strong>Expected bands:</strong> `;
+      msg += `Band 1: ${colorBoxFor(expectedBand1)}  `;
+      msg += `Band 2: ${colorBoxFor(expectedBand2)}  `;
+      msg += `Multiplier: ${colorBoxFor(expectedMultiplier)}  `;
+      msg += `Tolerance: ${colorBoxFor(expectedTolerance)}</div>`;
+
+      msg += `<div style="margin-top:8px"><strong>Your selection:</strong> `;
+      msg += `Band 1: ${colorBoxFor(selectedBand1)} ${selectedBand1 && expectedBand1 && selectedBand1.name === expectedBand1.name ? '<span class="correct">(ok)</span>' : '<span class="incorrect">(wrong)</span>'}  `;
+      msg += `Band 2: ${colorBoxFor(selectedBand2)} ${selectedBand2 && expectedBand2 && selectedBand2.name === expectedBand2.name ? '<span class="correct">(ok)</span>' : '<span class="incorrect">(wrong)</span>'}  `;
+      msg += `Multiplier: ${colorBoxFor(selectedMultiplier)} ${selectedMultiplier && expectedMultiplier && selectedMultiplier.name === expectedMultiplier.name ? '<span class="correct">(ok)</span>' : '<span class="incorrect">(wrong)</span>'}  `;
+      msg += `Tolerance: ${colorBoxFor(selectedTolerance)} ${selectedTolerance && expectedTolerance && selectedTolerance.name === expectedTolerance.name ? '<span class="correct">(ok)</span>' : '<span class="incorrect">(wrong)</span>'}</div>`;
+
+      // also give a short hint about allowed colours for each position (use the options available in the selects)
+      const allowedBand1 = colors.filter(c => c.digit !== undefined && c.digit !== 0).map(c => c.name).join(', ');
+      const allowedBand2 = colors.filter(c => c.digit !== undefined).map(c => c.name).join(', ');
+      const allowedMult = colors.filter(c => c.multiplier !== undefined).map(c => c.name).join(', ');
+      const allowedTol = colors.filter(c => c.tolerance !== undefined).map(c => c.name).join(', ');
+
+      //msg += `<div style="margin-top:8px; font-size:0.9em; color:#333"><strong>Allowed choices</strong> — Band1: ${allowedBand1}. Band2: ${allowedBand2}. Multiplier: ${allowedMult}. Tolerance: ${allowedTol}.</div>`;
+
+      feedback.innerHTML = msg;
     }
 
     populateSelects();
